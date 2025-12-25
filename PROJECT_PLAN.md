@@ -17,88 +17,89 @@ A modern, professional daily task planner web application built with Next.js 16,
 - [x] Install testing libraries (React Testing Library)
 - [x] Add database scripts to package.json
 - [x] Create drizzle.config.ts
-- [ ] Complete database schema in src/lib/db/schema.ts
-- [ ] Create database connection and migration setup
-- [ ] Generate initial database migration
+- [x] Complete database schema in src/lib/db/schema.ts
+- [x] Create database connection and migration setup
+- [x] Generate initial database migration
+- [ ] Create a README.md
 
 ## Phase 2: Database Schema & Models
 
 ### Lists Table
-- [ ] id: integer primary key (auto increment)
-- [ ] name: text (required)
-- [ ] color: text (default: "#3b82f6")
-- [ ] emoji: text (optional)
-- [ ] isDefault: boolean (for Inbox list)
-- [ ] createdAt: timestamp
-- [ ] updatedAt: timestamp
+- [x] id: integer primary key (auto increment)
+- [x] name: text (required)
+- [x] color: text (default: "#3b82f6")
+- [x] emoji: text (optional)
+- [x] isDefault: boolean (for Inbox list)
+- [x] createdAt: timestamp
+- [x] updatedAt: timestamp
 
 ### Tasks Table
-- [ ] id: integer primary key (auto increment)
-- [ ] name: text (required)
-- [ ] description: text (optional)
-- [ ] date: date (optional)
-- [ ] deadline: datetime (optional)
-- [ ] estimate: time (HH:mm format)
-- [ ] actualTime: time (HH:mm format)
-- [ ] priority: enum (High, Medium, Low, None)
-- [ ] completed: boolean (default: false)
-- [ ] listId: foreign key to lists table
-- [ ] createdAt: timestamp
-- [ ] updatedAt: timestamp
+- [x] id: integer primary key (auto increment)
+- [x] name: text (required)
+- [x] description: text (optional)
+- [x] date: date (optional)
+- [x] deadline: datetime (optional)
+- [x] estimate: time (HH:mm format)
+- [x] actualTime: time (HH:mm format)
+- [x] priority: enum (High, Medium, Low, None)
+- [x] completed: boolean (default: false)
+- [x] listId: foreign key to lists table
+- [x] createdAt: timestamp
+- [x] updatedAt: timestamp
 
 ### Labels Table
-- [ ] id: integer primary key (auto increment)
-- [ ] name: text (required, unique)
-- [ ] color: text (required)
-- [ ] icon: text (optional)
-- [ ] createdAt: timestamp
-- [ ] updatedAt: timestamp
+- [x] id: integer primary key (auto increment)
+- [x] name: text (required, unique)
+- [x] color: text (required)
+- [x] icon: text (optional)
+- [x] createdAt: timestamp
+- [x] updatedAt: timestamp
 
 ### Task Labels (Many-to-Many)
-- [ ] taskId: foreign key to tasks table
-- [ ] labelId: foreign key to labels table
-- [ ] createdAt: timestamp
+- [x] taskId: foreign key to tasks table
+- [x] labelId: foreign key to labels table
+- [x] createdAt: timestamp
 
 ### Subtasks Table
-- [ ] id: integer primary key (auto increment)
-- [ ] name: text (required)
-- [ ] completed: boolean (default: false)
-- [ ] taskId: foreign key to tasks table
-- [ ] createdAt: timestamp
-- [ ] updatedAt: timestamp
+- [x] id: integer primary key (auto increment)
+- [x] name: text (required)
+- [x] completed: boolean (default: false)
+- [x] taskId: foreign key to tasks table
+- [x] createdAt: timestamp
+- [x] updatedAt: timestamp
 
 ### Activity Log Table
-- [ ] id: integer primary key (auto increment)
-- [ ] taskId: foreign key to tasks table
-- [ ] action: text (created, updated, deleted, completed)
-- [ ] details: text (JSON of changes)
-- [ ] timestamp: timestamp
+- [x] id: integer primary key (auto increment)
+- [x] taskId: foreign key to tasks table
+- [x] action: text (created, updated, deleted, completed)
+- [x] details: text (JSON of changes)
+- [x] timestamp: timestamp
 
 ### Database Relations Setup
-- [ ] Define one-to-many relations (lists → tasks)
-- [ ] Define one-to-many relations (tasks → subtasks)
-- [ ] Define many-to-many relations (tasks ↔ labels)
-- [ ] Define one-to-many relations (tasks → activity logs)
+- [x] Define one-to-many relations (lists → tasks)
+- [x] Define one-to-many relations (tasks → subtasks)
+- [x] Define many-to-many relations (tasks ↔ labels)
+- [x] Define one-to-many relations (tasks → activity logs)
 
 ## Phase 3: Core Components & UI Foundation
 
 ### Layout Structure
-- [ ] Create AppLayout component (main wrapper)
-- [ ] Create Sidebar component (navigation, lists, labels)
-- [ ] Create MainPanel component (content area)
-- [ ] Create Header component (search, view toggles)
+- [x] Create AppLayout component (main wrapper)
+- [x] Create Sidebar component (navigation, lists, labels)
+- [x] Create MainPanel component (content area)
+- [x] Create Header component (search, view toggles)
 - [ ] Implement responsive design (mobile & desktop)
 - [ ] Add mobile sidebar toggle functionality
 
 ### Theme System
-- [ ] Create ThemeContext for dark/light mode
+- [x] Create ThemeContext for dark/light mode
 - [ ] Implement theme toggle button
 - [ ] Configure Tailwind CSS for dark mode
 - [ ] Add system theme detection
 - [ ] Persist theme preference in localStorage
 
 ### Reusable Components
-- [ ] Create TaskCard component (individual task display)
+- [x] Create TaskCard component (individual task display)
 - [ ] Create TaskForm component (create/edit tasks)
 - [ ] Create ListSidebarItem component (navigation items)
 - [ ] Create ViewToggle component (Today/7 Days/Upcoming/All)
@@ -120,11 +121,11 @@ A modern, professional daily task planner web application built with Next.js 16,
 ## Phase 4: State Management
 
 ### React Context Setup
-- [ ] Create TaskContext (tasks, lists, labels state)
-- [ ] Create ViewContext (current view, filters)
-- [ ] Create ThemeContext (dark/light mode state)
-- [ ] Create SearchContext (search state and results)
-- [ ] Implement context providers in app layout
+- [x] Create TaskContext (tasks, lists, labels state)
+- [x] Create ViewContext (current view, filters)
+- [x] Create ThemeContext (dark/light mode state)
+- [x] Create SearchContext (search state and results)
+- [x] Implement context providers in app layout
 - [ ] Add error boundaries for context errors
 
 ### Data Layer

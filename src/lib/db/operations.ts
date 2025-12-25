@@ -24,6 +24,7 @@ const convertList = (list: any): List => ({
   color: list.color,
   emoji: list.emoji || undefined,
   isDefault: !!list.isDefault,
+  order: list.order || 0,
   createdAt: new Date(list.createdAt * 1000).toISOString(),
   updatedAt: new Date(list.updatedAt * 1000).toISOString(),
 });
@@ -58,7 +59,8 @@ const convertActivityLog = (log: any): ActivityLog => ({
 // LISTS CRUD
 export const listsOps = {
   getAll: async (): Promise<List[]> => {
-    const result = await db.select().from(schema.lists);
+    const result = await db.select().from(schema.lists)
+      .orderBy(asc(schema.lists.order));
     return result.map(convertList);
   },
 
@@ -69,6 +71,7 @@ export const listsOps = {
       color: data.color,
       emoji: data.emoji,
       isDefault: data.isDefault,
+      order: data.order,
       createdAt: now,
       updatedAt: now,
     }).returning();
@@ -83,6 +86,7 @@ export const listsOps = {
     if (data.color !== undefined) updateData.color = data.color;
     if (data.emoji !== undefined) updateData.emoji = data.emoji;
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
+    if (data.order !== undefined) updateData.order = data.order;
     
     const result = await db.update(schema.lists)
       .set(updateData)
@@ -93,6 +97,15 @@ export const listsOps = {
 
   delete: async (id: string): Promise<void> => {
     await db.delete(schema.lists).where(eq(schema.lists.id, parseInt(id)));
+  },
+
+  reorder: async (listIds: string[]): Promise<void> => {
+    const updates = listIds.map((listId, index) => 
+      db.update(schema.lists)
+        .set({ order: index, updatedAt: Math.floor(Date.now() / 1000) })
+        .where(eq(schema.lists.id, parseInt(listId)))
+    );
+    await Promise.all(updates);
   },
 };
 

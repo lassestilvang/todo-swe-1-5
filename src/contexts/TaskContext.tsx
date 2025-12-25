@@ -28,6 +28,7 @@ export interface List {
   color: string;
   emoji?: string;
   isDefault: boolean;
+  order: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -83,6 +84,7 @@ type TaskAction =
   | { type: "ADD_LIST"; payload: List }
   | { type: "UPDATE_LIST"; payload: List }
   | { type: "DELETE_LIST"; payload: string }
+  | { type: "REORDER_LISTS"; payload: List[] }
   | { type: "SET_LABELS"; payload: Label[] }
   | { type: "ADD_LABEL"; payload: Label }
   | { type: "UPDATE_LABEL"; payload: Label }
@@ -175,6 +177,12 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
       return {
         ...state,
         lists: state.lists.filter(list => list.id !== action.payload),
+      };
+    
+    case "REORDER_LISTS":
+      return {
+        ...state,
+        lists: action.payload,
       };
     
     case "SET_LABELS":
@@ -340,6 +348,7 @@ const TaskContext = createContext<{
     createList: (list: Omit<List, "id" | "createdAt" | "updatedAt">) => Promise<void>;
     updateList: (id: string, data: Partial<List>) => Promise<void>;
     deleteList: (id: string) => Promise<void>;
+    reorderLists: (listIds: string[]) => Promise<void>;
     createLabel: (label: Omit<Label, "id" | "createdAt" | "updatedAt">) => Promise<void>;
     updateLabel: (id: string, data: Partial<Label>) => Promise<void>;
     deleteLabel: (id: string) => Promise<void>;
@@ -374,6 +383,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           name: "Inbox",
           color: "#3b82f6",
           isDefault: true,
+          order: 0,
         });
         lists.push(inboxList);
       }
@@ -523,6 +533,20 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Failed to delete list:", error);
         dispatch({ type: "SET_ERROR", payload: "Failed to delete list" });
+      }
+    },
+
+    reorderLists: async (listIds: string[]) => {
+      try {
+        await listsOps.reorder(listIds);
+        // Update the local state with the new order
+        const reorderedLists = listIds.map(id => 
+          state.lists.find(list => list.id === id)
+        ).filter(Boolean) as List[];
+        dispatch({ type: "REORDER_LISTS", payload: reorderedLists });
+      } catch (error) {
+        console.error("Failed to reorder lists:", error);
+        dispatch({ type: "SET_ERROR", payload: "Failed to reorder lists" });
       }
     },
 

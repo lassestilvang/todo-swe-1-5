@@ -181,7 +181,7 @@ A modern, professional daily task planner web application built with Next.js 16,
 - [x] Implement custom list creation
 - [x] Implement list editing (name, color, emoji)
 - [x] Implement list deletion (with task reassignment)
-- [ ] Add list reordering in sidebar
+- [x] Add list reordering in sidebar
 - [x] Add list task count badges
 - [x] Add list color picker component
 - [ ] Add emoji picker for list icons

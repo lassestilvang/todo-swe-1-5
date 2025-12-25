@@ -8,6 +8,7 @@ export const lists = sqliteTable("lists", {
   color: text("color").notNull().default("#3b82f6"),
   emoji: text("emoji"),
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  order: integer("order").notNull().default(0),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

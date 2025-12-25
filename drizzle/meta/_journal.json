@@ -15,6 +15,13 @@
       "when": 1766692255123,
       "tag": "0001_yellow_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1766692411335,
+      "tag": "0002_small_storm",
+      "breakpoints": true
     }
   ]
 }

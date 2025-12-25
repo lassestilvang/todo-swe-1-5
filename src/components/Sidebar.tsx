@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Plus, List, Tag, Calendar, Inbox, Edit2, Trash2 } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Menu, X, Plus, List, Tag, Calendar, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { DraggableListItem } from "@/components/DraggableListItem";
 
 interface SidebarProps {
   className?: string;
@@ -18,8 +21,16 @@ export function Sidebar({ className }: SidebarProps) {
   const [isListDialogOpen, setIsListDialogOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [newListColor, setNewListColor] = useState("#3b82f6");
+  const [newListEmoji, setNewListEmoji] = useState("");
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const { state, actions } = useTaskContext();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const navigationItems = [
     { icon: Inbox, label: "Inbox", count: 5 },
@@ -30,13 +41,17 @@ export function Sidebar({ className }: SidebarProps) {
 
   const handleCreateList = async () => {
     if (newListName.trim()) {
+      const currentMaxOrder = Math.max(...state.lists.map(l => l.order), -1);
       await actions.createList({
         name: newListName.trim(),
         color: newListColor,
+        emoji: newListEmoji || undefined,
         isDefault: false,
+        order: currentMaxOrder + 1,
       });
       setNewListName("");
       setNewListColor("#3b82f6");
+      setNewListEmoji("");
       setIsListDialogOpen(false);
     }
   };
@@ -52,6 +67,20 @@ export function Sidebar({ className }: SidebarProps) {
   const handleUpdateList = async (listId: string, newName: string) => {
     await actions.updateList(listId, { name: newName });
     setEditingListId(null);
+  };
+
+  const handleDragEnd = async (event: any) => {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      const oldIndex = state.lists.findIndex((list) => list.id === active.id);
+      const newIndex = state.lists.findIndex((list) => list.id === over.id);
+      
+      const newLists = arrayMove(state.lists, oldIndex, newIndex);
+      const newListIds = newLists.map(list => list.id);
+      
+      await actions.reorderLists(newListIds);
+    }
   };
 
   const getListTaskCount = (listId: string) => {
@@ -163,61 +192,25 @@ export function Sidebar({ className }: SidebarProps) {
               </Button>
             </div>
             <div className="space-y-1">
-              {state.lists.map((list) => (
-                <div
-                  key={list.id}
-                  className="group flex items-center"
-                >
-                  {editingListId === list.id ? (
-                    <Input
-                      defaultValue={list.name}
-                      className="flex-1 h-8 text-sm"
-                      onBlur={(e) => handleUpdateList(list.id, e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleUpdateList(list.id, e.currentTarget.value);
-                        } else if (e.key === "Escape") {
-                          setEditingListId(null);
-                        }
-                      }}
-                      autoFocus
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={state.lists.map(list => list.id)} strategy={verticalListSortingStrategy}>
+                  {state.lists.map((list) => (
+                    <DraggableListItem
+                      key={list.id}
+                      list={list}
+                      isEditing={editingListId === list.id}
+                      onEdit={setEditingListId}
+                      onUpdate={handleUpdateList}
+                      onDelete={handleDeleteList}
+                      taskCount={getListTaskCount(list.id)}
                     />
-                  ) : (
-                    <>
-                      <Button variant="ghost" className="flex-1 justify-start px-2 h-8">
-                        <div
-                          className="w-3 h-3 rounded-full mr-2"
-                          style={{ backgroundColor: list.color }}
-                        />
-                        <span className="flex-1 text-left">{list.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {getListTaskCount(list.id)}
-                        </span>
-                      </Button>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleEditList(list.id)}
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                        {!list.isDefault && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-red-500"
-                            onClick={() => handleDeleteList(list.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
 
             {/* Labels Section */}

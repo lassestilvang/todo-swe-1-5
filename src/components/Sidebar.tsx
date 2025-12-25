@@ -18,7 +18,7 @@ export function Sidebar({ className }: SidebarProps) {
   const [newListName, setNewListName] = useState("");
   const [newListColor, setNewListColor] = useState("#3b82f6");
   const [editingListId, setEditingListId] = useState<string | null>(null);
-  const { state, dispatch } = useTaskContext();
+  const { state, actions } = useTaskContext();
 
   const navigationItems = [
     { icon: Inbox, label: "Inbox", count: 5 },
@@ -27,36 +27,29 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: Tag, label: "All Tasks", count: 16 },
   ];
 
-  const handleCreateList = () => {
+  const handleCreateList = async () => {
     if (newListName.trim()) {
-      const newList = {
-        id: Date.now().toString(),
+      await actions.createList({
         name: newListName.trim(),
         color: newListColor,
         isDefault: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      dispatch({ type: "ADD_LIST", payload: newList });
+      });
       setNewListName("");
       setNewListColor("#3b82f6");
       setIsListDialogOpen(false);
     }
   };
 
-  const handleDeleteList = (listId: string) => {
-    dispatch({ type: "DELETE_LIST", payload: listId });
+  const handleDeleteList = async (listId: string) => {
+    await actions.deleteList(listId);
   };
 
   const handleEditList = (listId: string) => {
     setEditingListId(listId);
   };
 
-  const handleUpdateList = (listId: string, newName: string) => {
-    const list = state.lists.find(l => l.id === listId);
-    if (list) {
-      dispatch({ type: "UPDATE_LIST", payload: { ...list, name: newName, updatedAt: new Date().toISOString() } });
-    }
+  const handleUpdateList = async (listId: string, newName: string) => {
+    await actions.updateList(listId, { name: newName });
     setEditingListId(null);
   };
 

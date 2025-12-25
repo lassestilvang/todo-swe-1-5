@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SubtaskList } from "./SubtaskList";
 import { PriorityBadge } from "./PriorityBadge";
 import { LabelBadge } from "./LabelBadge";
+import { useTaskContext } from "@/contexts/TaskContext";
 import { cn } from "@/lib/utils";
 
 interface TaskCardProps {
@@ -44,9 +45,14 @@ interface TaskCardProps {
 
 export function TaskCard({ task, className }: TaskCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { actions } = useTaskContext();
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0;
   const totalSubtasks = task.subtasks?.length || 0;
   const hasSubtasks = totalSubtasks > 0;
+
+  const handleToggleTask = async () => {
+    await actions.toggleTask(task.id);
+  };
 
   return (
     <div
@@ -61,6 +67,7 @@ export function TaskCard({ task, className }: TaskCardProps) {
         <Checkbox
           checked={task.completed}
           className="mt-1"
+          onCheckedChange={handleToggleTask}
         />
         
         <div className="flex-1 min-w-0">

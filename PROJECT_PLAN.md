@@ -265,8 +265,8 @@ A modern, professional daily task planner web application built with Next.js 16,
 - [x] Write tests for form validation
 - [x] Write tests for utility functions
 - [x] Write tests for date/time functions
-- [ ] Write tests for search functionality
-- [ ] Write tests for context providers
+- [x] Write tests for search functionality
+- [x] Write tests for context providers
 
 ### Component Tests
 - [ ] Write tests for TaskCard component

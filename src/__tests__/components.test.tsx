@@ -1,0 +1,327 @@
+import { describe, it, expect, beforeEach } from "bun:test";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { TaskCard } from "@/components/TaskCard";
+import { TaskContext } from "@/contexts/TaskContext";
+import { ReactNode } from "react";
+
+// Mock task data
+const mockTask = {
+  id: "1",
+  name: "Test Task",
+  description: "Test Description",
+  priority: "High" as const,
+  completed: false,
+  listId: "inbox",
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
+};
+
+const mockTaskContext = {
+  state: {
+    tasks: [],
+    lists: [],
+    labels: [],
+    subtasks: [],
+    activityLogs: [],
+    loading: false,
+    error: null,
+  },
+  actions: {
+    createTask: async () => {},
+    updateTask: async () => {},
+    deleteTask: async () => {},
+    toggleTask: async () => {},
+    createList: async () => {},
+    updateList: async () => {},
+    deleteList: async () => {},
+    reorderLists: async () => {},
+    createLabel: async () => {},
+    updateLabel: async () => {},
+    deleteLabel: async () => {},
+  },
+};
+
+// Test wrapper component
+const TestWrapper = ({ children }: { children: ReactNode }) => (
+  <TaskContext.Provider value={mockTaskContext}>
+    {children}
+  </TaskContext.Provider>
+);
+
+describe("TaskCard Component", () => {
+  it("renders task name correctly", () => {
+    render(
+      <TestWrapper>
+        <TaskCard task={mockTask} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText("Test Task")).toBeInTheDocument();
+  });
+
+  it("renders task description when provided", () => {
+    render(
+      <TestWrapper>
+        <TaskCard task={mockTask} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText("Test Description")).toBeInTheDocument();
+  });
+
+  it("shows completed state with line-through", () => {
+    const completedTask = { ...mockTask, completed: true };
+    
+    render(
+      <TestWrapper>
+        <TaskCard task={completedTask} />
+      </TestWrapper>
+    );
+
+    const taskName = screen.getByText("Test Task");
+    expect(taskName).toHaveClass("line-through");
+  });
+
+  it("displays priority badge", () => {
+    render(
+      <TestWrapper>
+        <TaskCard task={mockTask} />
+      </TestWrapper>
+    );
+
+    // Priority badge should be visible (testing for High priority)
+    expect(screen.getByText("High")).toBeInTheDocument();
+  });
+
+  it("shows recurring indicator for recurring tasks", () => {
+    const recurringTask = { 
+      ...mockTask, 
+      isRecurring: true,
+      recurringPattern: "daily" as const,
+    };
+    
+    render(
+      <TestWrapper>
+        <TaskCard task={recurringTask} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText("Recurring")).toBeInTheDocument();
+  });
+
+  it("shows instance indicator for recurring task instances", () => {
+    const instanceTask = { 
+      ...mockTask, 
+      parentRecurringTaskId: "parent-123",
+    };
+    
+    render(
+      <TestWrapper>
+        <TaskCard task={instanceTask} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText("Instance")).toBeInTheDocument();
+  });
+
+  it("calls toggleTask when checkbox is clicked", async () => {
+    const mockToggleTask = jest.fn();
+    const mockContextWithToggle = {
+      ...mockTaskContext,
+      actions: {
+        ...mockTaskContext.actions,
+        toggleTask: mockToggleTask,
+      },
+    };
+
+    render(
+      <TaskContext.Provider value={mockContextWithToggle}>
+        <TaskCard task={mockTask} />
+      </TaskContext.Provider>
+    );
+
+    const checkbox = screen.getByRole("checkbox");
+    fireEvent.click(checkbox);
+
+    expect(mockToggleTask).toHaveBeenCalledWith("1");
+  });
+
+  it("displays date when provided", () => {
+    const taskWithDate = {
+      ...mockTask,
+      date: "2024-01-15",
+    };
+    
+    render(
+      <TestWrapper>
+        <TaskCard task={taskWithDate} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText("2024-01-15")).toBeInTheDocument();
+  });
+
+  it("displays time estimate when provided", () => {
+    const taskWithEstimate = {
+      ...mockTask,
+      estimate: "2h 30m",
+    };
+    
+    render(
+      <TestWrapper>
+        <TaskCard task={taskWithEstimate} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText("2h 30m")).toBeInTheDocument();
+  });
+
+  it("renders labels when provided", () => {
+    const taskWithLabels = {
+      ...mockTask,
+      labels: [
+        { id: "1", name: "Work", color: "#3b82f6", createdAt: "2024-01-01T00:00:00.000Z", updatedAt: "2024-01-01T00:00:00.000Z" },
+        { id: "2", name: "Urgent", color: "#ef4444", createdAt: "2024-01-01T00:00:00.000Z", updatedAt: "2024-01-01T00:00:00.000Z" },
+      ],
+    };
+    
+    render(
+      <TestWrapper>
+        <TaskCard task={taskWithLabels} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByText("Urgent")).toBeInTheDocument();
+  });
+
+  it("shows subtask progress when subtasks exist", () => {
+    const taskWithSubtasks = {
+      ...mockTask,
+      subtasks: [
+        { id: "1", name: "Subtask 1", completed: true, taskId: "1", createdAt: "2024-01-01T00:00:00.000Z", updatedAt: "2024-01-01T00:00:00.000Z" },
+        { id: "2", name: "Subtask 2", completed: false, taskId: "1", createdAt: "2024-01-01T00:00:00.000Z", updatedAt: "2024-01-01T00:00:00.000Z" },
+      ],
+    };
+    
+    render(
+      <TestWrapper>
+        <TaskCard task={taskWithSubtasks} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText("1/2")).toBeInTheDocument();
+  });
+});
+
+describe("Task Form Validation", () => {
+  it("should validate required task name", () => {
+    // This would test the form validation logic
+    // For now, we'll just test that the validation schema exists
+    const { taskSchema } = require("@/components/TaskForm");
+    
+    expect(taskSchema).toBeDefined();
+  });
+
+  it("should accept valid task data", () => {
+    const validTaskData = {
+      name: "Valid Task",
+      description: "Valid Description",
+      priority: "Medium",
+      listId: "inbox",
+      completed: false,
+    };
+
+    const { taskSchema } = require("@/components/TaskForm");
+    const result = taskSchema.safeParse(validTaskData);
+    
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject invalid task data", () => {
+    const invalidTaskData = {
+      name: "", // Empty name should fail validation
+      priority: "InvalidPriority",
+    };
+
+    const { taskSchema } = require("@/components/TaskForm");
+    const result = taskSchema.safeParse(invalidTaskData);
+    
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("Recurring Task Utilities", () => {
+  it("should calculate next due date for daily pattern", () => {
+    const { getNextDueDate } = require("@/lib/recurring-tasks");
+    
+    const baseDate = new Date("2024-01-01");
+    const config = {
+      isRecurring: true,
+      pattern: "daily",
+      interval: 1,
+    };
+
+    const nextDate = getNextDueDate(baseDate, config);
+    expect(nextDate).toBeInstanceOf(Date);
+    expect(nextDate?.getDate()).toBe(2); // Next day
+  });
+
+  it("should calculate next due date for weekly pattern", () => {
+    const { getNextDueDate } = require("@/lib/recurring-tasks");
+    
+    const baseDate = new Date("2024-01-01"); // Monday
+    const config = {
+      isRecurring: true,
+      pattern: "weekly",
+      interval: 1,
+    };
+
+    const nextDate = getNextDueDate(baseDate, config);
+    expect(nextDate).toBeInstanceOf(Date);
+    expect(nextDate?.getDate()).toBe(8); // Next week same day
+  });
+
+  it("should respect end date constraints", () => {
+    const { getNextDueDate } = require("@/lib/recurring-tasks");
+    
+    const baseDate = new Date("2024-01-01");
+    const config = {
+      isRecurring: true,
+      pattern: "daily",
+      interval: 1,
+      endDate: new Date("2024-01-02"), // End date is tomorrow
+    };
+
+    const nextDate = getNextDueDate(baseDate, config);
+    expect(nextDate).toBeInstanceOf(Date);
+    expect(nextDate?.getDate()).toBe(2); // Should return tomorrow
+    
+    // Next calculation should return null (past end date)
+    const nextDate2 = getNextDueDate(nextDate!, config);
+    expect(nextDate2).toBeNull();
+  });
+
+  it("should generate recurring pattern text", () => {
+    const { getRecurringPatternText } = require("@/lib/recurring-tasks");
+    
+    const dailyConfig = {
+      isRecurring: true,
+      pattern: "daily",
+      interval: 1,
+    };
+    expect(getRecurringPatternText(dailyConfig)).toBe("Daily");
+
+    const weeklyConfig = {
+      isRecurring: true,
+      pattern: "weekly",
+      interval: 2,
+    };
+    expect(getRecurringPatternText(weeklyConfig)).toBe("Every 2 weeks");
+
+    const nonRecurringConfig = {
+      isRecurring: false,
+    };
+    expect(getRecurringPatternText(nonRecurringConfig)).toBe("");
+  });
+});

@@ -260,11 +260,11 @@ A modern, professional daily task planner web application built with Next.js 16,
 ## Phase 9: Testing & Quality Assurance
 
 ### Unit Tests
-- [ ] Write tests for database operations
-- [ ] Write tests for CRUD operations
-- [ ] Write tests for form validation
-- [ ] Write tests for utility functions
-- [ ] Write tests for date/time functions
+- [x] Write tests for database operations
+- [x] Write tests for CRUD operations
+- [x] Write tests for form validation
+- [x] Write tests for utility functions
+- [x] Write tests for date/time functions
 - [ ] Write tests for search functionality
 - [ ] Write tests for context providers
 

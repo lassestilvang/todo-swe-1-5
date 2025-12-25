@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Clock, Flag, MoreHorizontal, ChevronDown, ChevronRight } from "lucide-react";
+import { Calendar, Clock, Flag, MoreHorizontal, ChevronDown, ChevronRight, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +24,10 @@ interface TaskCardProps {
     priority: "High" | "Medium" | "Low" | "None";
     completed: boolean;
     listId: string;
+    isRecurring?: boolean;
+    recurringPattern?: "daily" | "weekly" | "monthly" | "yearly" | "custom";
+    recurringInterval?: number;
+    parentRecurringTaskId?: string;
     createdAt: string;
     updatedAt: string;
     labels?: Array<{
@@ -115,6 +119,15 @@ export function TaskCard({ task, className }: TaskCardProps) {
             <div className="flex items-center space-x-1">
               <Clock className="h-3 w-3" />
               <span>{task.estimate}</span>
+            </div>
+          )}
+
+          {(task.isRecurring || task.parentRecurringTaskId) && (
+            <div className="flex items-center space-x-1">
+              <Repeat className="h-3 w-3" />
+              <span className="text-xs">
+                {task.isRecurring ? "Recurring" : "Instance"}
+              </span>
             </div>
           )}
         </div>

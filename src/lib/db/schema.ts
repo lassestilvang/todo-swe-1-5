@@ -25,6 +25,13 @@ export const tasks = sqliteTable("tasks", {
   priority: text("priority").notNull().default("None"), // High, Medium, Low, None
   completed: integer("completed", { mode: "boolean" }).notNull().default(false),
   listId: integer("list_id").references(() => lists.id),
+  isRecurring: integer("is_recurring", { mode: "boolean" }).notNull().default(false),
+  recurringPattern: text("recurring_pattern"), // daily, weekly, monthly, yearly, custom
+  recurringInterval: integer("recurring_interval").notNull().default(1), // Every X days/weeks/months
+  recurringEndDate: integer("recurring_end_date"), // Unix timestamp when recurrence stops
+  recurringDaysOfWeek: text("recurring_days_of_week"), // JSON array for custom patterns
+  recurringDayOfMonth: integer("recurring_day_of_month"), // For monthly patterns
+  parentRecurringTaskId: integer("parent_recurring_task_id"), // References the original recurring task
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
@@ -79,6 +86,11 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   subtasks: many(subtasks),
   activityLog: many(activityLog),
   labels: many(taskLabels),
+  parentRecurringTask: one(tasks, {
+    fields: [tasks.parentRecurringTaskId],
+    references: [tasks.id],
+  }),
+  recurringInstances: many(tasks),
 }));
 
 export const labelsRelations = relations(labels, ({ many }) => ({

@@ -1,5 +1,6 @@
 import { db, schema } from "./index";
-import { eq, and, desc, asc, like } from "drizzle-orm";
+import { eq, and, desc, asc, like, lt, gte } from "drizzle-orm";
+import { addDays, addWeeks, addMonths, addYears, startOfDay, isAfter, isBefore } from "date-fns";
 import type { Task, List, Label, Subtask, ActivityLog } from "@/contexts/TaskContext";
 
 // Convert database records to app format
@@ -14,6 +15,13 @@ const convertTask = (task: any): Task => ({
   priority: task.priority as "High" | "Medium" | "Low" | "None",
   completed: !!task.completed,
   listId: task.listId?.toString() || "inbox",
+  isRecurring: !!task.is_recurring,
+  recurringPattern: task.recurring_pattern as "daily" | "weekly" | "monthly" | "yearly" | "custom" | undefined,
+  recurringInterval: task.recurring_interval || undefined,
+  recurringEndDate: task.recurring_end_date ? new Date(task.recurring_end_date * 1000).toISOString() : undefined,
+  recurringDaysOfWeek: task.recurring_days_of_week ? JSON.parse(task.recurring_days_of_week) : undefined,
+  recurringDayOfMonth: task.recurring_day_of_month || undefined,
+  parentRecurringTaskId: task.parent_recurring_task_id?.toString() || undefined,
   createdAt: new Date(task.createdAt * 1000).toISOString(),
   updatedAt: new Date(task.updatedAt * 1000).toISOString(),
 });
@@ -135,6 +143,13 @@ export const tasksOps = {
       priority: data.priority,
       completed: data.completed,
       listId: data.listId === "inbox" ? null : parseInt(data.listId),
+      isRecurring: data.isRecurring || false,
+      recurringPattern: data.recurringPattern || null,
+      recurringInterval: data.recurringInterval || 1,
+      recurringEndDate: data.recurringEndDate ? Math.floor(new Date(data.recurringEndDate).getTime() / 1000) : null,
+      recurringDaysOfWeek: data.recurringDaysOfWeek ? JSON.stringify(data.recurringDaysOfWeek) : null,
+      recurringDayOfMonth: data.recurringDayOfMonth || null,
+      parentRecurringTaskId: data.parentRecurringTaskId ? parseInt(data.parentRecurringTaskId) : null,
       createdAt: now,
       updatedAt: now,
     }).returning();
@@ -164,6 +179,13 @@ export const tasksOps = {
     if (data.priority !== undefined) updateData.priority = data.priority;
     if (data.completed !== undefined) updateData.completed = data.completed;
     if (data.listId !== undefined) updateData.listId = data.listId === "inbox" ? null : parseInt(data.listId);
+    if (data.isRecurring !== undefined) updateData.is_recurring = data.isRecurring;
+    if (data.recurringPattern !== undefined) updateData.recurring_pattern = data.recurringPattern;
+    if (data.recurringInterval !== undefined) updateData.recurring_interval = data.recurringInterval;
+    if (data.recurringEndDate !== undefined) updateData.recurring_end_date = data.recurringEndDate ? Math.floor(new Date(data.recurringEndDate).getTime() / 1000) : null;
+    if (data.recurringDaysOfWeek !== undefined) updateData.recurring_days_of_week = data.recurringDaysOfWeek ? JSON.stringify(data.recurringDaysOfWeek) : null;
+    if (data.recurringDayOfMonth !== undefined) updateData.recurring_day_of_month = data.recurringDayOfMonth;
+    if (data.parentRecurringTaskId !== undefined) updateData.parent_recurring_task_id = data.parentRecurringTaskId ? parseInt(data.parentRecurringTaskId) : null;
     
     const result = await db.update(schema.tasks)
       .set(updateData)
@@ -210,6 +232,100 @@ export const tasksOps = {
     });
     
     return updated;
+  },
+
+  generateRecurringInstances: async (parentTaskId: string): Promise<Task[]> => {
+    const parentTask = await tasksOps.getById(parentTaskId);
+    if (!parentTask || !parentTask.isRecurring || !parentTask.date) {
+      return [];
+    }
+
+    const generatedTasks: Task[] = [];
+    const now = new Date();
+    const startDate = new Date(parentTask.date);
+    const endDate = parentTask.recurringEndDate ? new Date(parentTask.recurringEndDate) : null;
+    
+    // Generate instances for the next 3 months (or until end date)
+    const generationEndDate = endDate ? 
+      (isBefore(endDate, addMonths(now, 3)) ? endDate : addMonths(now, 3)) : 
+      addMonths(now, 3);
+
+    let currentDate = startDate;
+    
+    while (isBefore(currentDate, generationEndDate) || currentDate.toDateString() === generationEndDate.toDateString()) {
+      // Skip if this date is in the past
+      if (isAfter(currentDate, startOfDay(now))) {
+        // Check if instance already exists
+        const existingInstances = await db.select().from(schema.tasks)
+          .where(eq(schema.tasks.parentRecurringTaskId, parseInt(parentTaskId)));
+        
+        const instanceExists = existingInstances.some(instance => {
+          const instanceDate = instance.date ? new Date(instance.date * 1000) : null;
+          return instanceDate && instanceDate.toDateString() === currentDate.toDateString();
+        });
+
+        if (!instanceExists) {
+          // Create new instance
+          const instanceData = {
+            name: parentTask.name,
+            description: parentTask.description,
+            date: currentDate.toISOString().split('T')[0],
+            deadline: parentTask.deadline,
+            estimate: parentTask.estimate,
+            priority: parentTask.priority,
+            completed: false,
+            listId: parentTask.listId,
+            isRecurring: false, // Instances are not recurring themselves
+            parentRecurringTaskId: parentTaskId,
+          };
+
+          const newTask = await tasksOps.create(instanceData);
+          generatedTasks.push(newTask);
+        }
+      }
+
+      // Calculate next occurrence based on pattern
+      switch (parentTask.recurringPattern) {
+        case 'daily':
+          currentDate = addDays(currentDate, parentTask.recurringInterval || 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, parentTask.recurringInterval || 1);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, parentTask.recurringInterval || 1);
+          break;
+        case 'yearly':
+          currentDate = addYears(currentDate, parentTask.recurringInterval || 1);
+          break;
+        case 'custom':
+          // For custom patterns, use days of week if specified
+          if (parentTask.recurringDaysOfWeek && parentTask.recurringDaysOfWeek.length > 0) {
+            const dayOfWeek = currentDate.getDay();
+            const nextDayIndex = parentTask.recurringDaysOfWeek
+              .sort((a, b) => a - b)
+              .find(d => d > dayOfWeek) || parentTask.recurringDaysOfWeek.sort((a, b) => a - b)[0];
+            
+            const daysToAdd = nextDayIndex > dayOfWeek ? 
+              nextDayIndex - dayOfWeek : 
+              7 - dayOfWeek + nextDayIndex;
+            
+            currentDate = addDays(currentDate, daysToAdd * (parentTask.recurringInterval || 1));
+          } else {
+            currentDate = addDays(currentDate, parentTask.recurringInterval || 1);
+          }
+          break;
+        default:
+          currentDate = addDays(currentDate, 1);
+      }
+
+      // Stop if we've reached the end date
+      if (endDate && isAfter(currentDate, endDate)) {
+        break;
+      }
+    }
+
+    return generatedTasks;
   },
 };
 

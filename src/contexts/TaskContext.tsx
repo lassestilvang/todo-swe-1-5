@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
 import { tasksOps, listsOps, labelsOps, subtasksOps, activityLogsOps } from "@/lib/db/operations";
+import { RecurringTaskService } from "@/lib/recurring-task-service";
 import { ContextErrorBoundary } from "@/components/ContextErrorBoundary";
 
 // Types
@@ -16,6 +17,13 @@ export interface Task {
   priority: "High" | "Medium" | "Low" | "None";
   completed: boolean;
   listId: string;
+  isRecurring?: boolean;
+  recurringPattern?: "daily" | "weekly" | "monthly" | "yearly" | "custom";
+  recurringInterval?: number;
+  recurringEndDate?: string;
+  recurringDaysOfWeek?: number[];
+  recurringDayOfMonth?: number;
+  parentRecurringTaskId?: string;
   createdAt: string;
   updatedAt: string;
   labels?: Label[];
@@ -341,10 +349,11 @@ const TaskContext = createContext<{
   state: TaskState;
   dispatch: React.Dispatch<TaskAction>;
   actions: {
-    createTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+    createTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "labels" | "subtasks">) => Promise<void>;
     updateTask: (id: string, data: Partial<Task>) => Promise<void>;
     deleteTask: (id: string) => Promise<void>;
     toggleTask: (id: string) => Promise<void>;
+    generateRecurringTasks: (taskId: string) => Promise<void>;
     createList: (list: Omit<List, "id" | "createdAt" | "updatedAt">) => Promise<void>;
     updateList: (id: string, data: Partial<List>) => Promise<void>;
     deleteList: (id: string) => Promise<void>;
@@ -400,6 +409,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadInitialData();
+    // Generate recurring instances on app startup
+    RecurringTaskService.generateRecurringInstances();
   }, []);
 
   // Actions
@@ -496,8 +507,16 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       
       try {
         const updatedTask = await tasksOps.toggle(id);
-        // Confirm the update with server data
-        dispatch({ type: "UPDATE_TASK", payload: updatedTask });
+        
+        // If this is a recurring task instance, handle recurring logic
+        if (currentTask.parentRecurringTaskId && !currentTask.completed) {
+          await RecurringTaskService.completeRecurringInstance(id);
+          // Refresh data to get the new instance
+          await loadInitialData();
+        } else {
+          // Confirm the update with server data
+          dispatch({ type: "UPDATE_TASK", payload: updatedTask });
+        }
       } catch (error) {
         console.error("Failed to toggle task:", error);
         // Rollback optimistic update
@@ -684,6 +703,24 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     refreshData: async () => {
       await loadInitialData();
+    },
+
+    generateRecurringTasks: async (taskId: string) => {
+      try {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (!task || !task.isRecurring) return;
+
+        // Generate future instances of the recurring task
+        const generatedTasks = await tasksOps.generateRecurringInstances(taskId);
+        
+        // Add generated tasks to state
+        generatedTasks.forEach((newTask: Task) => {
+          dispatch({ type: "ADD_TASK", payload: newTask });
+        });
+      } catch (error) {
+        console.error("Failed to generate recurring tasks:", error);
+        dispatch({ type: "SET_ERROR", payload: "Failed to generate recurring tasks" });
+      }
     },
   };
 

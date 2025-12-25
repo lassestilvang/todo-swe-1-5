@@ -5,13 +5,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Clock, Flag, Plus, X, Save } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Flag, Plus, X, Save, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,12 @@ const taskSchema = z.object({
   priority: z.enum(["High", "Medium", "Low", "None"]),
   listId: z.string().optional(),
   labels: z.array(z.string()).optional(),
+  isRecurring: z.boolean().optional(),
+  recurringPattern: z.enum(["daily", "weekly", "monthly", "yearly", "custom"]).optional(),
+  recurringInterval: z.number().min(1).optional(),
+  recurringEndDate: z.date().optional(),
+  recurringDaysOfWeek: z.array(z.number()).optional(),
+  recurringDayOfMonth: z.number().min(1).max(31).optional(),
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -53,6 +59,8 @@ export function TaskForm({
   const [selectedLabels, setSelectedLabels] = useState<string[]>(initialData?.labels || []);
   const [isDraft, setIsDraft] = useState(false);
   const [draftTaskId, setDraftTaskId] = useState<string | null>(null);
+  const [isRecurring, setIsRecurring] = useState(initialData?.isRecurring || false);
+  const [recurringDaysOfWeek, setRecurringDaysOfWeek] = useState<number[]>(initialData?.recurringDaysOfWeek || []);
   const { actions } = useTaskContext();
   
   const form = useForm<TaskFormData>({
@@ -64,6 +72,12 @@ export function TaskForm({
       listId: initialData?.listId || "",
       estimate: initialData?.estimate || "",
       labels: initialData?.labels || [],
+      isRecurring: initialData?.isRecurring || false,
+      recurringPattern: initialData?.recurringPattern || "daily",
+      recurringInterval: initialData?.recurringInterval || 1,
+      recurringEndDate: initialData?.recurringEndDate,
+      recurringDaysOfWeek: initialData?.recurringDaysOfWeek || [],
+      recurringDayOfMonth: initialData?.recurringDayOfMonth || 1,
     },
   });
 
@@ -82,6 +96,12 @@ export function TaskForm({
       priority: data.priority,
       completed: false,
       listId: data.listId || "inbox",
+      isRecurring: data.isRecurring,
+      recurringPattern: data.recurringPattern,
+      recurringInterval: data.recurringInterval,
+      recurringEndDate: data.recurringEndDate ? data.recurringEndDate.toISOString() : undefined,
+      recurringDaysOfWeek: data.recurringDaysOfWeek,
+      recurringDayOfMonth: data.recurringDayOfMonth,
     };
     
     try {
@@ -137,6 +157,24 @@ export function TaskForm({
         : [...prev, labelId]
     );
   };
+
+  const toggleRecurringDay = (day: number) => {
+    setRecurringDaysOfWeek(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
+    );
+  };
+
+  const weekDays = [
+    { id: 0, name: "Sun" },
+    { id: 1, name: "Mon" },
+    { id: 2, name: "Tue" },
+    { id: 3, name: "Wed" },
+    { id: 4, name: "Thu" },
+    { id: 5, name: "Fri" },
+    { id: 6, name: "Sat" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -202,7 +240,7 @@ export function TaskForm({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
-                <Calendar
+                <CalendarComponent
                   mode="single"
                   selected={form.watch("date")}
                   onSelect={(date) => form.setValue("date", date)}
@@ -329,6 +367,135 @@ export function TaskForm({
             </div>
           </div>
         )}
+
+        {/* Recurring Tasks Section */}
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="isRecurring"
+              checked={isRecurring}
+              onCheckedChange={(checked) => {
+                setIsRecurring(checked as boolean);
+                form.setValue("isRecurring", checked as boolean);
+              }}
+            />
+            <Label htmlFor="isRecurring" className="flex items-center space-x-2">
+              <Repeat className="h-4 w-4" />
+              <span>Recurring Task</span>
+            </Label>
+          </div>
+
+          {isRecurring && (
+            <div className="space-y-4 pl-6 border-l-2 border-muted">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="recurringPattern">Pattern</Label>
+                  <Select
+                    value={form.watch("recurringPattern")}
+                    onValueChange={(value) => form.setValue("recurringPattern", value as any)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pattern" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="recurringInterval">Every</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="recurringInterval"
+                      type="number"
+                      min="1"
+                      {...form.register("recurringInterval", { valueAsNumber: true })}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {form.watch("recurringPattern") === "daily" && "day(s)"}
+                      {form.watch("recurringPattern") === "weekly" && "week(s)"}
+                      {form.watch("recurringPattern") === "monthly" && "month(s)"}
+                      {form.watch("recurringPattern") === "yearly" && "year(s)"}
+                      {form.watch("recurringPattern") === "custom" && "period(s)"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {form.watch("recurringPattern") === "weekly" && (
+                <div>
+                  <Label>Days of Week</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {weekDays.map((day) => (
+                      <div
+                        key={day.id}
+                        className={cn(
+                          "flex items-center justify-center w-8 h-8 rounded-md border cursor-pointer transition-colors text-xs",
+                          recurringDaysOfWeek.includes(day.id)
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50"
+                        )}
+                        onClick={() => toggleRecurringDay(day.id)}
+                      >
+                        {day.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {form.watch("recurringPattern") === "monthly" && (
+                <div>
+                  <Label htmlFor="recurringDayOfMonth">Day of Month</Label>
+                  <Input
+                    id="recurringDayOfMonth"
+                    type="number"
+                    min="1"
+                    max="31"
+                    {...form.register("recurringDayOfMonth", { valueAsNumber: true })}
+                    placeholder="e.g., 15 for the 15th day"
+                    className="w-24"
+                  />
+                </div>
+              )}
+
+              <div>
+                <Label>End Date (optional)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !form.watch("recurringEndDate") && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.watch("recurringEndDate") 
+                        ? format(form.watch("recurringEndDate")!, "PPP") 
+                        : "No end date"
+                      }
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent
+                      mode="single"
+                      selected={form.watch("recurringEndDate")}
+                      onSelect={(date) => form.setValue("recurringEndDate", date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex justify-end space-x-2 pt-4 border-t">

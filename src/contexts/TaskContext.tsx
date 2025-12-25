@@ -46,6 +46,7 @@ export interface Subtask {
   name: string;
   completed: boolean;
   taskId: string;
+  order: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -93,7 +94,18 @@ type TaskAction =
   | { type: "TOGGLE_SUBTASK"; payload: string }
   | { type: "SET_ACTIVITY_LOGS"; payload: ActivityLog[] }
   | { type: "ADD_ACTIVITY_LOG"; payload: ActivityLog }
-  | { type: "LOAD_INITIAL_DATA"; payload: { tasks?: Task[]; lists?: List[]; labels?: Label[]; subtasks?: Subtask[]; activityLogs?: ActivityLog[] } };
+  | { type: "LOAD_INITIAL_DATA"; payload: { tasks?: Task[]; lists?: List[]; labels?: Label[]; subtasks?: Subtask[]; activityLogs?: ActivityLog[] } }
+  // Optimistic update actions
+  | { type: "OPTIMISTIC_ADD_TASK"; payload: Task }
+  | { type: "OPTIMISTIC_UPDATE_TASK"; payload: { id: string; data: Partial<Task>; previous: Task } }
+  | { type: "OPTIMISTIC_DELETE_TASK"; payload: { id: string; previous: Task } }
+  | { type: "OPTIMISTIC_TOGGLE_TASK"; payload: { id: string; previous: Task } }
+  | { type: "ROLLBACK_TASK"; payload: Task }
+  | { type: "OPTIMISTIC_ADD_SUBTASK"; payload: Subtask }
+  | { type: "OPTIMISTIC_UPDATE_SUBTASK"; payload: { id: string; data: Partial<Subtask>; previous: Subtask } }
+  | { type: "OPTIMISTIC_DELETE_SUBTASK"; payload: { id: string; previous: Subtask } }
+  | { type: "OPTIMISTIC_TOGGLE_SUBTASK"; payload: { id: string; previous: Subtask } }
+  | { type: "ROLLBACK_SUBTASK"; payload: Subtask };
 
 // Initial state
 const initialState: TaskState = {
@@ -221,6 +233,85 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
     case "ADD_ACTIVITY_LOG":
       return { ...state, activityLogs: [...state.activityLogs, action.payload] };
     
+    // Optimistic update cases
+    case "OPTIMISTIC_ADD_TASK":
+      return { ...state, tasks: [...state.tasks, action.payload] };
+    
+    case "OPTIMISTIC_UPDATE_TASK":
+      return {
+        ...state,
+        tasks: state.tasks.map(task =>
+          task.id === action.payload.id
+            ? { ...task, ...action.payload.data }
+            : task
+        ),
+      };
+    
+    case "OPTIMISTIC_DELETE_TASK":
+      return {
+        ...state,
+        tasks: state.tasks.filter(task => task.id !== action.payload.id),
+      };
+    
+    case "OPTIMISTIC_TOGGLE_TASK":
+      return {
+        ...state,
+        tasks: state.tasks.map(task =>
+          task.id === action.payload.id
+            ? { ...task, completed: !task.completed }
+            : task
+        ),
+      };
+    
+    case "ROLLBACK_TASK":
+      return {
+        ...state,
+        tasks: state.tasks.some(t => t.id === action.payload.id)
+          ? state.tasks.map(task =>
+              task.id === action.payload.id ? action.payload : task
+            )
+          : [...state.tasks, action.payload],
+      };
+    
+    case "OPTIMISTIC_ADD_SUBTASK":
+      return { ...state, subtasks: [...state.subtasks, action.payload] };
+    
+    case "OPTIMISTIC_UPDATE_SUBTASK":
+      return {
+        ...state,
+        subtasks: state.subtasks.map(subtask =>
+          subtask.id === action.payload.id
+            ? { ...subtask, ...action.payload.data }
+            : subtask
+        ),
+      };
+    
+    case "OPTIMISTIC_DELETE_SUBTASK":
+      return {
+        ...state,
+        subtasks: state.subtasks.filter(subtask => subtask.id !== action.payload.id),
+      };
+    
+    case "OPTIMISTIC_TOGGLE_SUBTASK":
+      return {
+        ...state,
+        subtasks: state.subtasks.map(subtask =>
+          subtask.id === action.payload.id
+            ? { ...subtask, completed: !subtask.completed }
+            : subtask
+        ),
+      };
+    
+    case "ROLLBACK_SUBTASK":
+      return {
+        ...state,
+        subtasks: state.subtasks.some(s => s.id === action.payload.id)
+          ? state.subtasks.map(subtask =>
+              subtask.id === action.payload.id ? action.payload : subtask
+            )
+          : [...state.subtasks, action.payload],
+      };
+    
     case "LOAD_INITIAL_DATA":
       return {
         ...state,
@@ -304,41 +395,103 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   // Actions
   const actions = {
     createTask: async (task: Omit<Task, "id" | "createdAt" | "updatedAt">) => {
+      // Generate temporary ID for optimistic update
+      const tempId = `temp-${Date.now()}-${Math.random()}`;
+      const tempTask: Task = {
+        ...task,
+        id: tempId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Optimistic update
+      dispatch({ type: "OPTIMISTIC_ADD_TASK", payload: tempTask });
+      
       try {
         const newTask = await tasksOps.create(task);
-        dispatch({ type: "ADD_TASK", payload: newTask });
+        // Replace temp task with real task
+        dispatch({ type: "UPDATE_TASK", payload: newTask });
       } catch (error) {
         console.error("Failed to create task:", error);
+        // Rollback optimistic update
+        dispatch({ type: "ROLLBACK_TASK", payload: tempTask });
         dispatch({ type: "SET_ERROR", payload: "Failed to create task" });
       }
     },
 
     updateTask: async (id: string, data: Partial<Task>) => {
+      // Find current task for rollback
+      const currentTask = state.tasks.find(t => t.id === id);
+      if (!currentTask) {
+        dispatch({ type: "SET_ERROR", payload: "Task not found" });
+        return;
+      }
+      
+      // Optimistic update
+      dispatch({ 
+        type: "OPTIMISTIC_UPDATE_TASK", 
+        payload: { id, data, previous: currentTask } 
+      });
+      
       try {
         const updatedTask = await tasksOps.update(id, data);
+        // Confirm the update with server data
         dispatch({ type: "UPDATE_TASK", payload: updatedTask });
       } catch (error) {
         console.error("Failed to update task:", error);
+        // Rollback optimistic update
+        dispatch({ type: "ROLLBACK_TASK", payload: currentTask });
         dispatch({ type: "SET_ERROR", payload: "Failed to update task" });
       }
     },
 
     deleteTask: async (id: string) => {
+      // Find current task for rollback
+      const currentTask = state.tasks.find(t => t.id === id);
+      if (!currentTask) {
+        dispatch({ type: "SET_ERROR", payload: "Task not found" });
+        return;
+      }
+      
+      // Optimistic update
+      dispatch({ 
+        type: "OPTIMISTIC_DELETE_TASK", 
+        payload: { id, previous: currentTask } 
+      });
+      
       try {
         await tasksOps.delete(id);
-        dispatch({ type: "DELETE_TASK", payload: id });
+        // Optimistic update confirmed, no action needed
       } catch (error) {
         console.error("Failed to delete task:", error);
+        // Rollback optimistic update
+        dispatch({ type: "ROLLBACK_TASK", payload: currentTask });
         dispatch({ type: "SET_ERROR", payload: "Failed to delete task" });
       }
     },
 
     toggleTask: async (id: string) => {
+      // Find current task for rollback
+      const currentTask = state.tasks.find(t => t.id === id);
+      if (!currentTask) {
+        dispatch({ type: "SET_ERROR", payload: "Task not found" });
+        return;
+      }
+      
+      // Optimistic update
+      dispatch({ 
+        type: "OPTIMISTIC_TOGGLE_TASK", 
+        payload: { id, previous: currentTask } 
+      });
+      
       try {
         const updatedTask = await tasksOps.toggle(id);
+        // Confirm the update with server data
         dispatch({ type: "UPDATE_TASK", payload: updatedTask });
       } catch (error) {
         console.error("Failed to toggle task:", error);
+        // Rollback optimistic update
+        dispatch({ type: "ROLLBACK_TASK", payload: currentTask });
         dispatch({ type: "SET_ERROR", payload: "Failed to toggle task" });
       }
     },
@@ -404,41 +557,103 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     },
 
     createSubtask: async (subtask: Omit<Subtask, "id" | "createdAt" | "updatedAt">) => {
+      // Generate temporary ID for optimistic update
+      const tempId = `temp-${Date.now()}-${Math.random()}`;
+      const tempSubtask: Subtask = {
+        ...subtask,
+        id: tempId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Optimistic update
+      dispatch({ type: "OPTIMISTIC_ADD_SUBTASK", payload: tempSubtask });
+      
       try {
         const newSubtask = await subtasksOps.create(subtask);
-        dispatch({ type: "ADD_SUBTASK", payload: newSubtask });
+        // Replace temp subtask with real subtask
+        dispatch({ type: "UPDATE_SUBTASK", payload: newSubtask });
       } catch (error) {
         console.error("Failed to create subtask:", error);
+        // Rollback optimistic update
+        dispatch({ type: "ROLLBACK_SUBTASK", payload: tempSubtask });
         dispatch({ type: "SET_ERROR", payload: "Failed to create subtask" });
       }
     },
 
     updateSubtask: async (id: string, data: Partial<Subtask>) => {
+      // Find current subtask for rollback
+      const currentSubtask = state.subtasks.find(s => s.id === id);
+      if (!currentSubtask) {
+        dispatch({ type: "SET_ERROR", payload: "Subtask not found" });
+        return;
+      }
+      
+      // Optimistic update
+      dispatch({ 
+        type: "OPTIMISTIC_UPDATE_SUBTASK", 
+        payload: { id, data, previous: currentSubtask } 
+      });
+      
       try {
         const updatedSubtask = await subtasksOps.update(id, data);
+        // Confirm the update with server data
         dispatch({ type: "UPDATE_SUBTASK", payload: updatedSubtask });
       } catch (error) {
         console.error("Failed to update subtask:", error);
+        // Rollback optimistic update
+        dispatch({ type: "ROLLBACK_SUBTASK", payload: currentSubtask });
         dispatch({ type: "SET_ERROR", payload: "Failed to update subtask" });
       }
     },
 
     deleteSubtask: async (id: string) => {
+      // Find current subtask for rollback
+      const currentSubtask = state.subtasks.find(s => s.id === id);
+      if (!currentSubtask) {
+        dispatch({ type: "SET_ERROR", payload: "Subtask not found" });
+        return;
+      }
+      
+      // Optimistic update
+      dispatch({ 
+        type: "OPTIMISTIC_DELETE_SUBTASK", 
+        payload: { id, previous: currentSubtask } 
+      });
+      
       try {
         await subtasksOps.delete(id);
-        dispatch({ type: "DELETE_SUBTASK", payload: id });
+        // Optimistic update confirmed, no action needed
       } catch (error) {
         console.error("Failed to delete subtask:", error);
+        // Rollback optimistic update
+        dispatch({ type: "ROLLBACK_SUBTASK", payload: currentSubtask });
         dispatch({ type: "SET_ERROR", payload: "Failed to delete subtask" });
       }
     },
 
     toggleSubtask: async (id: string) => {
+      // Find current subtask for rollback
+      const currentSubtask = state.subtasks.find(s => s.id === id);
+      if (!currentSubtask) {
+        dispatch({ type: "SET_ERROR", payload: "Subtask not found" });
+        return;
+      }
+      
+      // Optimistic update
+      dispatch({ 
+        type: "OPTIMISTIC_TOGGLE_SUBTASK", 
+        payload: { id, previous: currentSubtask } 
+      });
+      
       try {
         const updatedSubtask = await subtasksOps.toggle(id);
+        // Confirm the update with server data
         dispatch({ type: "UPDATE_SUBTASK", payload: updatedSubtask });
       } catch (error) {
         console.error("Failed to toggle subtask:", error);
+        // Rollback optimistic update
+        dispatch({ type: "ROLLBACK_SUBTASK", payload: currentSubtask });
         dispatch({ type: "SET_ERROR", payload: "Failed to toggle subtask" });
       }
     },

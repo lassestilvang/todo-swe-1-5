@@ -1,0 +1,1 @@
+ALTER TABLE `subtasks` ADD `order` integer DEFAULT 0 NOT NULL;

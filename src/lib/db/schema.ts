@@ -51,6 +51,7 @@ export const subtasks = sqliteTable("subtasks", {
   name: text("name").notNull(),
   completed: integer("completed", { mode: "boolean" }).notNull().default(false),
   taskId: integer("task_id").references(() => tasks.id).notNull(),
+  order: integer("order").notNull().default(0),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

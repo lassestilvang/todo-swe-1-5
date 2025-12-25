@@ -1,12 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Check } from "lucide-react";
+import { Plus, X, Check, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useTaskContext } from "@/contexts/TaskContext";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface SubtaskListProps {
   taskId: string;
@@ -16,41 +35,130 @@ interface SubtaskListProps {
     completed: boolean;
     createdAt: string;
     updatedAt: string;
+    order?: number; // Add order field for sorting
   }>;
   className?: string;
+}
+
+// Sortable subtask item component
+function SortableSubtask({ 
+  subtask, 
+  onToggle, 
+  onDelete 
+}: {
+  subtask: any;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: subtask.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent transition-colors"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing"
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <Checkbox
+        checked={subtask.completed}
+        onCheckedChange={() => onToggle(subtask.id)}
+      />
+      <span
+        className={cn(
+          "flex-1 text-sm",
+          subtask.completed && "line-through text-muted-foreground"
+        )}
+      >
+        {subtask.name}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onDelete(subtask.id)}
+        className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+      >
+        <X className="h-3 w-3" />
+      </Button>
+    </div>
+  );
 }
 
 export function SubtaskList({ taskId, subtasks = [], className }: SubtaskListProps) {
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
   const [newSubtaskName, setNewSubtaskName] = useState("");
-  const { dispatch } = useTaskContext();
+  const { actions } = useTaskContext();
 
-  const handleAddSubtask = () => {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleAddSubtask = async () => {
     if (newSubtaskName.trim()) {
       const newSubtask = {
-        id: Date.now().toString(),
         name: newSubtaskName.trim(),
         completed: false,
         taskId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        order: subtasks.length, // Add at the end
       };
       
-      // Dispatch ADD_SUBTASK action (you'll need to add this to TaskContext)
-      dispatch({ type: "ADD_SUBTASK", payload: newSubtask });
+      await actions.createSubtask(newSubtask);
       setNewSubtaskName("");
       setIsAddingSubtask(false);
     }
   };
 
-  const handleToggleSubtask = (subtaskId: string) => {
-    // Dispatch TOGGLE_SUBTASK action
-    dispatch({ type: "TOGGLE_SUBTASK", payload: subtaskId });
+  const handleToggleSubtask = async (subtaskId: string) => {
+    await actions.toggleSubtask(subtaskId);
   };
 
-  const handleDeleteSubtask = (subtaskId: string) => {
-    // Dispatch DELETE_SUBTASK action
-    dispatch({ type: "DELETE_SUBTASK", payload: subtaskId });
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    await actions.deleteSubtask(subtaskId);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = subtasks.findIndex((subtask) => subtask.id === active.id);
+      const newIndex = subtasks.findIndex((subtask) => subtask.id === over?.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newSubtasks = arrayMove(subtasks, oldIndex, newIndex);
+        
+        // Update the order field for each subtask
+        const updates = newSubtasks.map((subtask, index) => ({
+          id: subtask.id,
+          order: index,
+        }));
+        
+        // Update each subtask's order
+        for (const update of updates) {
+          await actions.updateSubtask(update.id, { order: update.order });
+        }
+      }
+    }
   };
 
   const completedCount = subtasks.filter(st => st.completed).length;
@@ -76,35 +184,24 @@ export function SubtaskList({ taskId, subtasks = [], className }: SubtaskListPro
       )}
 
       {/* Subtask List */}
-      <div className="space-y-2">
-        {subtasks.map((subtask) => (
-          <div
-            key={subtask.id}
-            className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent transition-colors"
-          >
-            <Checkbox
-              checked={subtask.completed}
-              onCheckedChange={() => handleToggleSubtask(subtask.id)}
-            />
-            <span
-              className={cn(
-                "flex-1 text-sm",
-                subtask.completed && "line-through text-muted-foreground"
-              )}
-            >
-              {subtask.name}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDeleteSubtask(subtask.id)}
-              className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
-            >
-              <X className="h-3 w-3" />
-            </Button>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={subtasks.map(st => st.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {subtasks.map((subtask) => (
+              <SortableSubtask
+                key={subtask.id}
+                subtask={subtask}
+                onToggle={handleToggleSubtask}
+                onDelete={handleDeleteSubtask}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Add Subtask */}
       {isAddingSubtask ? (

@@ -1,9 +1,12 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { Clock, Edit, Trash2, Check, Plus } from "lucide-react";
+import { Clock, Edit, Trash2, Check, Plus, Filter, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { ActivityLog } from "@/contexts/TaskContext";
 
@@ -27,9 +30,47 @@ const actionColors = {
 };
 
 export function ActivityLogViewer({ activities, className }: ActivityLogProps) {
-  const sortedActivities = activities.sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  const [selectedAction, setSelectedAction] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<string>("all");
+
+  const filteredActivities = useMemo(() => {
+    let filtered = [...activities];
+
+    // Filter by action type
+    if (selectedAction !== "all") {
+      filtered = filtered.filter(activity => activity.action === selectedAction);
+    }
+
+    // Filter by date range
+    const now = new Date();
+    if (dateRange === "today") {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      filtered = filtered.filter(activity => 
+        new Date(activity.timestamp) >= today
+      );
+    } else if (dateRange === "week") {
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(activity => 
+        new Date(activity.timestamp) >= weekAgo
+      );
+    } else if (dateRange === "month") {
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(activity => 
+        new Date(activity.timestamp) >= monthAgo
+      );
+    }
+
+    return filtered.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [activities, selectedAction, dateRange]);
+
+  const clearFilters = () => {
+    setSelectedAction("all");
+    setDateRange("all");
+  };
+
+  const hasActiveFilters = selectedAction !== "all" || dateRange !== "all";
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -82,23 +123,68 @@ export function ActivityLogViewer({ activities, className }: ActivityLogProps) {
 
   return (
     <Card className={cn("p-4", className)}>
-      <div className="flex items-center space-x-2 mb-4">
-        <Clock className="h-4 w-4" />
-        <h3 className="font-semibold">Activity Log</h3>
-        <Badge variant="secondary" className="text-xs">
-          {activities.length}
-        </Badge>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <Clock className="h-4 w-4" />
+          <h3 className="font-semibold">Activity Log</h3>
+          <Badge variant="secondary" className="text-xs">
+            {filteredActivities.length}
+            {hasActiveFilters && ` / ${activities.length}`}
+          </Badge>
+        </div>
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="text-xs"
+          >
+            <X className="h-3 w-3 mr-1" />
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center space-x-2 mb-4 p-2 bg-muted/30 rounded-md">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <Select value={selectedAction} onValueChange={setSelectedAction}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Action" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Actions</SelectItem>
+            <SelectItem value="created">Created</SelectItem>
+            <SelectItem value="updated">Updated</SelectItem>
+            <SelectItem value="deleted">Deleted</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        <Select value={dateRange} onValueChange={setDateRange}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Date Range" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="week">Past Week</SelectItem>
+            <SelectItem value="month">Past Month</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="h-64 overflow-y-auto">
-        {sortedActivities.length === 0 ? (
+        {filteredActivities.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
             <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No activity yet</p>
+            <p className="text-sm">
+              {hasActiveFilters ? "No activities match filters" : "No activity yet"}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {sortedActivities.map((activity) => (
+            {filteredActivities.map((activity) => (
               <div
                 key={activity.id}
                 className="flex items-start space-x-3 p-2 rounded-md hover:bg-accent/50 transition-colors"

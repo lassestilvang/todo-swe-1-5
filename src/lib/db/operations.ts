@@ -42,6 +42,7 @@ const convertSubtask = (subtask: any): Subtask => ({
   name: subtask.name,
   completed: !!subtask.completed,
   taskId: subtask.taskId.toString(),
+  order: subtask.order || 0,
   createdAt: new Date(subtask.createdAt * 1000).toISOString(),
   updatedAt: new Date(subtask.updatedAt * 1000).toISOString(),
 });
@@ -241,16 +242,24 @@ export const subtasksOps = {
   getByTaskId: async (taskId: string): Promise<Subtask[]> => {
     const result = await db.select().from(schema.subtasks)
       .where(eq(schema.subtasks.taskId, parseInt(taskId)))
-      .orderBy(asc(schema.subtasks.createdAt));
+      .orderBy(asc(schema.subtasks.order));
     return result.map(convertSubtask);
   },
 
   create: async (data: Omit<Subtask, "id" | "createdAt" | "updatedAt">): Promise<Subtask> => {
     const now = Math.floor(Date.now() / 1000);
+    // Get the highest order for this task
+    const existingSubtasks = await db.select().from(schema.subtasks)
+      .where(eq(schema.subtasks.taskId, parseInt(data.taskId)));
+    const maxOrder = existingSubtasks.length > 0 
+      ? Math.max(...existingSubtasks.map(st => st.order || 0))
+      : -1;
+    
     const result = await db.insert(schema.subtasks).values({
       name: data.name,
       completed: data.completed,
       taskId: parseInt(data.taskId),
+      order: data.order !== undefined ? data.order : maxOrder + 1,
       createdAt: now,
       updatedAt: now,
     }).returning();
@@ -263,6 +272,7 @@ export const subtasksOps = {
     
     if (data.name !== undefined) updateData.name = data.name;
     if (data.completed !== undefined) updateData.completed = data.completed;
+    if (data.order !== undefined) updateData.order = data.order;
     
     const result = await db.update(schema.subtasks)
       .set(updateData)

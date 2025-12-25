@@ -83,12 +83,28 @@ type TaskAction =
   | { type: "SET_LABELS"; payload: Label[] }
   | { type: "ADD_LABEL"; payload: Label }
   | { type: "UPDATE_LABEL"; payload: Label }
-  | { type: "DELETE_LABEL"; payload: string };
+  | { type: "DELETE_LABEL"; payload: string }
+  | { type: "SET_SUBTASKS"; payload: Subtask[] }
+  | { type: "ADD_SUBTASK"; payload: Subtask }
+  | { type: "UPDATE_SUBTASK"; payload: Subtask }
+  | { type: "DELETE_SUBTASK"; payload: string }
+  | { type: "TOGGLE_SUBTASK"; payload: string }
+  | { type: "SET_ACTIVITY_LOGS"; payload: ActivityLog[] }
+  | { type: "ADD_ACTIVITY_LOG"; payload: ActivityLog };
 
 // Initial state
 const initialState: TaskState = {
   tasks: [],
-  lists: [],
+  lists: [
+    {
+      id: "inbox",
+      name: "Inbox",
+      color: "#3b82f6",
+      isDefault: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+  ],
   labels: [],
   subtasks: [],
   activityLogs: [],
@@ -174,6 +190,42 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
         ...state,
         labels: state.labels.filter(label => label.id !== action.payload),
       };
+    
+    case "SET_SUBTASKS":
+      return { ...state, subtasks: action.payload };
+    
+    case "ADD_SUBTASK":
+      return { ...state, subtasks: [...state.subtasks, action.payload] };
+    
+    case "UPDATE_SUBTASK":
+      return {
+        ...state,
+        subtasks: state.subtasks.map(subtask =>
+          subtask.id === action.payload.id ? action.payload : subtask
+        ),
+      };
+    
+    case "DELETE_SUBTASK":
+      return {
+        ...state,
+        subtasks: state.subtasks.filter(subtask => subtask.id !== action.payload),
+      };
+    
+    case "TOGGLE_SUBTASK":
+      return {
+        ...state,
+        subtasks: state.subtasks.map(subtask =>
+          subtask.id === action.payload
+            ? { ...subtask, completed: !subtask.completed }
+            : subtask
+        ),
+      };
+    
+    case "SET_ACTIVITY_LOGS":
+      return { ...state, activityLogs: action.payload };
+    
+    case "ADD_ACTIVITY_LOG":
+      return { ...state, activityLogs: [...state.activityLogs, action.payload] };
     
     default:
       return state;

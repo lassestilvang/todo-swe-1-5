@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useReducer, ReactNode } from "react";
+import { ContextErrorBoundary } from "@/components/ContextErrorBoundary";
 
 interface SearchState {
   query: string;
@@ -44,9 +45,11 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(searchReducer, initialState);
 
   return (
-    <SearchContext.Provider value={{ state, dispatch }}>
-      {children}
-    </SearchContext.Provider>
+    <ContextErrorBoundary>
+      <SearchContext.Provider value={{ state, dispatch }}>
+        {children}
+      </SearchContext.Provider>
+    </ContextErrorBoundary>
   );
 }
 

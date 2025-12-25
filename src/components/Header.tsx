@@ -4,15 +4,13 @@ import { ReactNode } from "react";
 import { Bell, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "./SearchBar";
-import { useTheme } from "./ThemeProvider";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface HeaderProps {
   children?: ReactNode;
 }
 
 export function Header({ children }: HeaderProps) {
-  const { theme, setTheme } = useTheme();
-
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b bg-background">
       {/* Mobile menu button or left content */}
@@ -27,6 +25,7 @@ export function Header({ children }: HeaderProps) {
 
       {/* Right Actions */}
       <div className="flex items-center space-x-2">
+        <ThemeToggle />
         <Button variant="ghost" size="sm">
           <Bell className="h-4 w-4" />
         </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useReducer, ReactNode } from "react";
+import { ContextErrorBoundary } from "@/components/ContextErrorBoundary";
 
 export type ViewType = "today" | "week" | "upcoming" | "all";
 
@@ -64,9 +65,11 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(viewReducer, initialState);
 
   return (
-    <ViewContext.Provider value={{ state, dispatch }}>
-      {children}
-    </ViewContext.Provider>
+    <ContextErrorBoundary>
+      <ViewContext.Provider value={{ state, dispatch }}>
+        {children}
+      </ViewContext.Provider>
+    </ContextErrorBoundary>
   );
 }
 

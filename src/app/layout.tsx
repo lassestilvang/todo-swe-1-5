@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ViewProvider } from "@/contexts/ViewContext";
 import { SearchProvider } from "@/contexts/SearchContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,15 +32,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider>
-          <TaskProvider>
-            <ViewProvider>
-              <SearchProvider>
-                {children}
-              </SearchProvider>
-            </ViewProvider>
-          </TaskProvider>
-        </ThemeProvider>
+        <ErrorBoundary>
+          <ThemeProvider>
+            <TaskProvider>
+              <ViewProvider>
+                <SearchProvider>
+                  {children}
+                </SearchProvider>
+              </ViewProvider>
+            </TaskProvider>
+          </ThemeProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

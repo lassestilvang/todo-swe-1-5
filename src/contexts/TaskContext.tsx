@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
 import { tasksOps, listsOps, labelsOps, subtasksOps, activityLogsOps } from "@/lib/db/operations";
+import { ContextErrorBoundary } from "@/components/ContextErrorBoundary";
 
 // Types
 export interface Task {
@@ -448,9 +449,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <TaskContext.Provider value={{ state, dispatch, actions }}>
-      {children}
-    </TaskContext.Provider>
+    <ContextErrorBoundary>
+      <TaskContext.Provider value={{ state, dispatch, actions }}>
+        {children}
+      </TaskContext.Provider>
+    </ContextErrorBoundary>
   );
 }
 

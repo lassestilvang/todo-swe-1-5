@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Plus, List, Tag, Calendar, Inbox, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,57 +59,99 @@ export function Sidebar({ className }: SidebarProps) {
   };
 
   return (
-    <div
+    <motion.div
       className={cn(
-        "flex flex-col bg-card border-r transition-all duration-300",
+        "flex flex-col bg-card border-r",
         isCollapsed ? "w-16" : "w-64",
         className
       )}
+      layout
+      transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        {!isCollapsed && (
-          <h2 className="text-lg font-semibold">Task Planner</h2>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-        </Button>
-      </div>
+      <motion.div 
+        className="flex items-center justify-between p-4 border-b"
+        layout
+      >
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.h2 
+              className="text-lg font-semibold"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              Task Planner
+            </motion.h2>
+          )}
+        </AnimatePresence>
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            <motion.div
+              animate={{ rotate: isCollapsed ? 0 : 180 }}
+              transition={{ duration: 0.2 }}
+            >
+              {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            </motion.div>
+          </Button>
+        </motion.div>
+      </motion.div>
 
       {/* Navigation */}
       <nav className="flex-1 p-2">
         <div className="space-y-1">
-          {navigationItems.map((item) => (
-            <Button
+          {navigationItems.map((item, index) => (
+            <motion.div
               key={item.label}
-              variant="ghost"
-              className={cn(
-                "w-full justify-start",
-                isCollapsed && "justify-center px-2"
-              )}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
             >
-              <item.icon className="h-4 w-4" />
-              {!isCollapsed && (
-                <>
-                  <span className="ml-2">{item.label}</span>
-                  {item.count > 0 && (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {item.count}
-                    </span>
+              <Button
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start",
+                  isCollapsed && "justify-center px-2"
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.div
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      className="ml-2 flex-1 flex items-center"
+                    >
+                      <span className="flex-1">{item.label}</span>
+                      {item.count > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {item.count}
+                        </span>
+                      )}
+                    </motion.div>
                   )}
-                </>
-              )}
-            </Button>
+                </AnimatePresence>
+              </Button>
+            </motion.div>
           ))}
         </div>
 
         {/* Lists Section */}
-        {!isCollapsed && (
-          <div className="mt-8">
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.div
+              className="mt-8"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
             <div className="flex items-center justify-between px-2 mb-2">
               <h3 className="text-sm font-medium text-muted-foreground">Lists</h3>
               <Button 
@@ -200,17 +243,32 @@ export function Sidebar({ className }: SidebarProps) {
                 ))}
               </div>
             </div>
-          </div>
-        )}
+          </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* Footer */}
-      <div className="p-2 border-t">
+      <motion.div 
+        className="p-2 border-t"
+        layout
+      >
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.span
+              className="ml-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              New Task
+            </motion.span>
+          )}
+        </AnimatePresence>
         <Button variant="ghost" className="w-full justify-start">
           <Plus className="h-4 w-4" />
-          {!isCollapsed && <span className="ml-2">New Task</span>}
         </Button>
-      </div>
+      </motion.div>
 
       {/* Create List Dialog */}
       <Dialog open={isListDialogOpen} onOpenChange={setIsListDialogOpen}>
@@ -255,6 +313,6 @@ export function Sidebar({ className }: SidebarProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }

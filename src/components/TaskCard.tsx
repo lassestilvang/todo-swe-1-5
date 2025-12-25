@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Clock, Flag, MoreHorizontal, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,12 +56,24 @@ export function TaskCard({ task, className }: TaskCardProps) {
   };
 
   return (
-    <div
+    <motion.div
       className={cn(
-        "bg-card border rounded-lg p-4 space-y-3 transition-all hover:shadow-md",
+        "bg-card border rounded-lg p-4 space-y-3",
         task.completed && "opacity-60",
         className
       )}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      whileHover={{ 
+        scale: 1.02,
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)"
+      }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 300, 
+        damping: 30 
+      }}
     >
       {/* Header */}
       <div className="flex items-start space-x-3">
@@ -128,28 +141,39 @@ export function TaskCard({ task, className }: TaskCardProps) {
       {/* Subtasks */}
       {hasSubtasks && (
         <div className="border-t pt-3">
-          <button
+          <motion.button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            {isExpanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
+            <motion.div
+              animate={{ rotate: isExpanded ? 90 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
               <ChevronRight className="h-3 w-3" />
-            )}
+            </motion.div>
             <span>Subtasks ({completedSubtasks}/{totalSubtasks})</span>
-          </button>
+          </motion.button>
           
-          {isExpanded && (
-            <div className="mt-3">
-              <SubtaskList
-                taskId={task.id}
-                subtasks={task.subtasks}
-              />
-            </div>
-          )}
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                className="mt-3"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+              >
+                <SubtaskList
+                  taskId={task.id}
+                  subtasks={task.subtasks}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { TaskForm } from "./TaskForm";
 import { TaskCard } from "./TaskCard";
 import { FilterBar } from "./FilterBar";
+import { NaturalLanguageTaskInput } from "./NaturalLanguageTaskInput";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useViewContext } from "@/contexts/ViewContext";
 import { filterTasks } from "@/lib/task-filtering";
@@ -33,6 +34,26 @@ export function MainPanel({ title = "All Tasks", view = "all" }: MainPanelProps)
     setIsTaskDialogOpen(false);
   };
 
+  const handleNaturalLanguageTaskCreate = async (parsedTask: any) => {
+    // Convert parsed task to the format expected by the API
+    const taskData = {
+      name: parsedTask.name,
+      description: parsedTask.description,
+      priority: parsedTask.priority || "None",
+      date: parsedTask.date,
+      deadline: parsedTask.deadline,
+      estimate: parsedTask.estimate,
+      listId: "inbox", // Default to inbox
+      labels: parsedTask.labels || [],
+      completed: false,
+      isRecurring: !!parsedTask.recurringPattern,
+      recurringPattern: parsedTask.recurringPattern,
+      recurringInterval: parsedTask.recurringInterval || 1,
+    };
+
+    await actions.createTask(taskData);
+  };
+
   return (
     <div className="flex-1 overflow-auto">
       {/* Header */}
@@ -48,6 +69,11 @@ export function MainPanel({ title = "All Tasks", view = "all" }: MainPanelProps)
 
       {/* Filter Bar */}
       <FilterBar />
+
+      {/* Natural Language Task Input */}
+      <div className="px-6 py-4 border-b">
+        <NaturalLanguageTaskInput onTaskCreate={handleNaturalLanguageTaskCreate} />
+      </div>
 
       {/* Task List */}
       <div className="p-6">

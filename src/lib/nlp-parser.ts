@@ -24,6 +24,8 @@ interface ParseResult {
 
 // Common time patterns
 const TIME_PATTERNS = [
+  { regex: /at\s*(\d{1,2}):(\d{2})\s*(am|pm)?/i, extract: extract24HourTime },
+  { regex: /at\s*(\d{1,2})\s*(am|pm)/i, extract: extract12HourTime },
   { regex: /(\d{1,2}):(\d{2})\s*(am|pm)?/i, extract: extract24HourTime },
   { regex: /(\d{1,2})\s*(am|pm)/i, extract: extract12HourTime },
   { regex: /noon/i, extract: () => 12 * 60 },
@@ -64,7 +66,7 @@ const PRIORITY_PATTERNS = [
 const ESTIMATE_PATTERNS = [
   { regex: /(\d+)\s*h(?:ours?)?/i, extract: (fullMatch: string, hours: string, _: string = '') => `${hours}h` },
   { regex: /(\d+)\s*m(?:inutes?)?/i, extract: (fullMatch: string, minutes: string, _: string = '') => `${minutes}m` },
-  { regex: /(\d+)\s*h\s*(\d+)\s*m?/i, extract: (_: string, h: string, m: string) => `${h}h ${m}m` },
+  { regex: /(\d+)\s*h\s*(\d+)\s*m?/i, extract: (fullMatch: string, h: string, m: string) => `${h}h ${m}m` },
 ];
 
 // Recurring patterns

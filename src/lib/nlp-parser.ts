@@ -106,7 +106,8 @@ export function parseNaturalLanguageInput(input: string): ParseResult {
       const match = remainingText.match(pattern.regex);
       if (match) {
         timeMinutes = pattern.extract(match);
-        remainingText = remainingText.replace(pattern.regex, '').trim();
+        // Remove the entire matched pattern from remaining text
+        remainingText = remainingText.replace(match[0], '').trim();
         break;
       }
     }
@@ -117,7 +118,8 @@ export function parseNaturalLanguageInput(input: string): ParseResult {
       const match = remainingText.match(pattern.regex);
       if (match) {
         taskDate = pattern.extract(match, (pattern as any).weekday);
-        remainingText = remainingText.replace(pattern.regex, '').trim();
+        // Remove the entire matched pattern from remaining text
+        remainingText = remainingText.replace(match[0], '').trim();
         break;
       }
     }
@@ -139,7 +141,8 @@ export function parseNaturalLanguageInput(input: string): ParseResult {
       const match = remainingText.match(pattern.regex);
       if (match) {
         task.priority = pattern.priority;
-        remainingText = remainingText.replace(pattern.regex, '').trim();
+        // Remove the entire matched pattern from remaining text
+        remainingText = remainingText.replace(match[0], '').trim();
         break;
       }
     }
@@ -154,7 +157,8 @@ export function parseNaturalLanguageInput(input: string): ParseResult {
         } else {
           task.estimate = pattern.extract(match[0], match[1], '');
         }
-        remainingText = remainingText.replace(pattern.regex, '').trim();
+        // Remove the entire matched pattern from remaining text
+        remainingText = remainingText.replace(match[0], '').trim();
         break;
       }
     }
@@ -171,13 +175,16 @@ export function parseNaturalLanguageInput(input: string): ParseResult {
           task.recurringPattern = pattern.pattern;
           task.recurringInterval = pattern.interval;
         }
-        remainingText = remainingText.replace(pattern.regex, '').trim();
+        // Remove the entire matched pattern from remaining text
+        remainingText = remainingText.replace(match[0], '').trim();
         break;
       }
     }
 
     // Clean up the task name
-    task.name = remainingText.replace(/\s+/g, ' ').trim();
+    if (!task.name) {
+      task.name = remainingText.replace(/\s+/g, ' ').trim();
+    }
     
     // Extract description (anything after a dash or colon)
     const descMatch = task.name.match(/^(.+?)\s*[-:]\s*(.+)$/);

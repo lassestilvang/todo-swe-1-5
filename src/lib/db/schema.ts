@@ -73,6 +73,18 @@ export const activityLog = sqliteTable("activity_log", {
   timestamp: integer("timestamp").notNull(),
 });
 
+// Attachments table
+export const attachments = sqliteTable("attachments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  fileName: text("file_name").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(), // File size in bytes
+  filePath: text("file_path").notNull(), // Path to stored file
+  uploadedAt: integer("uploaded_at").notNull(),
+});
+
 // Relations
 export const listsRelations = relations(lists, ({ many }) => ({
   tasks: many(tasks),
@@ -86,6 +98,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   subtasks: many(subtasks),
   activityLog: many(activityLog),
   labels: many(taskLabels),
+  attachments: many(attachments),
   parentRecurringTask: one(tasks, {
     fields: [tasks.parentRecurringTaskId],
     references: [tasks.id],
@@ -105,6 +118,13 @@ export const taskLabelsRelations = relations(taskLabels, ({ one }) => ({
   label: one(labels, {
     fields: [taskLabels.labelId],
     references: [labels.id],
+  }),
+}));
+
+export const attachmentsRelations = relations(attachments, ({ one }) => ({
+  task: one(tasks, {
+    fields: [attachments.taskId],
+    references: [tasks.id],
   }),
 }));
 

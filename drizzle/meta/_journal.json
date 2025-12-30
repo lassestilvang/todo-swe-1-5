@@ -29,6 +29,13 @@
       "when": 1766693752426,
       "tag": "0003_nebulous_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1767132590404,
+      "tag": "0004_fearless_agent_zero",
+      "breakpoints": true
     }
   ]
 }

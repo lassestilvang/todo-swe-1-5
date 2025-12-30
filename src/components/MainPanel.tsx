@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TaskForm } from "./TaskForm";
 import { TaskCard } from "./TaskCard";
+import { FilterBar } from "./FilterBar";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { useViewContext } from "@/contexts/ViewContext";
+import { filterTasks } from "@/lib/task-filtering";
 import { cn } from "@/lib/utils";
 
 interface MainPanelProps {
@@ -17,47 +19,10 @@ interface MainPanelProps {
 
 export function MainPanel({ title = "All Tasks", view = "all" }: MainPanelProps) {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const { state, actions } = useTaskContext();
+  const { state: taskState, actions } = useTaskContext();
+  const { state: viewState } = useViewContext();
 
-  const filteredTasks = state.tasks.filter(task => {
-    const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    if (!matchesSearch) return false;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-
-    switch (view) {
-      case "today":
-        if (task.date) {
-          const taskDate = new Date(task.date);
-          taskDate.setHours(0, 0, 0, 0);
-          return taskDate.getTime() === today.getTime();
-        }
-        return false;
-      case "week":
-        if (task.date) {
-          const taskDate = new Date(task.date);
-          return taskDate >= today && taskDate <= nextWeek;
-        }
-        return false;
-      case "upcoming":
-        if (task.date) {
-          const taskDate = new Date(task.date);
-          return taskDate > today;
-        }
-        return false;
-      case "all":
-      default:
-        return true;
-    }
-  });
+  const filteredTasks = filterTasks(taskState.tasks, viewState);
 
   const handleCreateTask = async (taskData: any) => {
     await actions.createTask({
@@ -81,30 +46,18 @@ export function MainPanel({ title = "All Tasks", view = "all" }: MainPanelProps)
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="border-b px-6 py-4">
-        <div className="flex items-center space-x-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-      </div>
+      {/* Filter Bar */}
+      <FilterBar />
 
       {/* Task List */}
       <div className="p-6">
-        {state.loading ? (
+        {taskState.loading ? (
           <div className="text-center py-8 text-muted-foreground">
             Loading tasks...
           </div>
         ) : filteredTasks.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            {searchQuery ? "No tasks found matching your search." : "No tasks found. Create your first task!"}
+            {viewState.searchQuery ? "No tasks found matching your search." : "No tasks found. Create your first task!"}
           </div>
         ) : (
           <div className="space-y-4">
@@ -124,8 +77,8 @@ export function MainPanel({ title = "All Tasks", view = "all" }: MainPanelProps)
           <TaskForm
             onSubmit={handleCreateTask}
             onCancel={() => setIsTaskDialogOpen(false)}
-            lists={state.lists}
-            labels={state.labels}
+            lists={taskState.lists}
+            labels={taskState.labels}
           />
         </DialogContent>
       </Dialog>

@@ -184,7 +184,7 @@ A modern, professional daily task planner web application built with Next.js 16,
 - [x] Add list reordering in sidebar
 - [x] Add list task count badges
 - [x] Add list color picker component
-- [ ] Add emoji picker for list icons
+- [x] Add emoji picker for list icons
 
 ### Label Management
 - [x] Implement label creation
@@ -203,7 +203,7 @@ A modern, professional daily task planner web application built with Next.js 16,
 - [x] Create "Upcoming" view (all future tasks)
 - [x] Create "All" view (all tasks, scheduled & unscheduled)
 - [x] Add view navigation buttons
-- [ ] Add view persistence in URL
+- [x] Add view persistence in URL
 - [x] Add view transition animations
 
 ### Filtering Options
@@ -211,8 +211,8 @@ A modern, professional daily task planner web application built with Next.js 16,
 - [x] Add priority filtering
 - [x] Add list filtering
 - [x] Add label filtering
-- [ ] Add date range filtering
-- [ ] Add overdue task highlighting
+- [x] Add date range filtering
+- [x] Add overdue task highlighting
 - [x] Add task count per view
 
 ### Search Functionality

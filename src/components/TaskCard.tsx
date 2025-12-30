@@ -11,6 +11,8 @@ import { PriorityBadge } from "./PriorityBadge";
 import { LabelBadge } from "./LabelBadge";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { cn } from "@/lib/utils";
+import { getOverdueStatus } from "@/lib/date-utils";
+import { AlertTriangle } from "lucide-react";
 
 interface TaskCardProps {
   task: {
@@ -54,6 +56,7 @@ export function TaskCard({ task, className }: TaskCardProps) {
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0;
   const totalSubtasks = task.subtasks?.length || 0;
   const hasSubtasks = totalSubtasks > 0;
+  const overdueStatus = getOverdueStatus(task);
 
   const handleToggleTask = async () => {
     await actions.toggleTask(task.id);
@@ -64,6 +67,8 @@ export function TaskCard({ task, className }: TaskCardProps) {
       className={cn(
         "bg-card border rounded-lg p-4 space-y-3",
         task.completed && "opacity-60",
+        overdueStatus === 'overdue' && "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20",
+        overdueStatus === 'due-soon' && "border-yellow-200 bg-yellow-50/50 dark:border-yellow-800 dark:bg-yellow-950/20",
         className
       )}
       initial={{ opacity: 0, y: 20 }}
@@ -133,6 +138,18 @@ export function TaskCard({ task, className }: TaskCardProps) {
         </div>
 
         <div className="flex items-center space-x-2">
+          {overdueStatus === 'overdue' && (
+            <Badge variant="destructive" className="text-xs">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Overdue
+            </Badge>
+          )}
+          {overdueStatus === 'due-soon' && (
+            <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Due Soon
+            </Badge>
+          )}
           <PriorityBadge priority={task.priority} />
         </div>
       </div>

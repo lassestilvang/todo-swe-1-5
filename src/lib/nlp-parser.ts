@@ -66,7 +66,7 @@ const PRIORITY_PATTERNS = [
 const ESTIMATE_PATTERNS = [
   { regex: /(\d+)\s*h(?:ours?)?/i, extract: (fullMatch: string, hours: string, _: string = '') => `${hours}h` },
   { regex: /(\d+)\s*m(?:inutes?)?/i, extract: (fullMatch: string, minutes: string, _: string = '') => `${minutes}m` },
-  { regex: /(\d+)\s*h\s*(\d+)\s*m?/i, extract: (fullMatch: string, h: string, m: string) => `${h}h ${m}m` },
+  { regex: /(\d+)\s*h\s*(\d+)\s*m?/i, extract: (fullMatch: string, h: string, m: string) => fullMatch },
 ];
 
 // Recurring patterns
@@ -125,6 +125,7 @@ export function parseNaturalLanguageInput(input: string): ParseResult {
     // Combine date and time
     if (taskDate && timeMinutes !== undefined) {
       taskDate = setMinutes(setHours(taskDate, Math.floor(timeMinutes / 60)), timeMinutes % 60);
+      task.date = taskDate;
     } else if (taskDate) {
       task.date = taskDate;
     } else if (timeMinutes !== undefined) {
@@ -147,10 +148,11 @@ export function parseNaturalLanguageInput(input: string): ParseResult {
     for (const pattern of ESTIMATE_PATTERNS) {
       const match = remainingText.match(pattern.regex);
       if (match) {
-        if (match.length === 2) {
-          task.estimate = pattern.extract(match[0], match[1], '');
-        } else if (match.length === 3) {
+        // For complex patterns (1h 30m), use the full match
+        if (match.length === 3) {
           task.estimate = pattern.extract(match[0], match[1], match[2]);
+        } else {
+          task.estimate = pattern.extract(match[0], match[1], '');
         }
         remainingText = remainingText.replace(pattern.regex, '').trim();
         break;

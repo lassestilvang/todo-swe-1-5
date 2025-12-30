@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "bun:test";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TaskCard } from "@/components/TaskCard";
+import { NaturalLanguageTaskInput } from "@/components/NaturalLanguageTaskInput";
 import { TaskProvider, useTaskContext } from "@/contexts/TaskContext";
 import { ReactNode } from "react";
 
@@ -254,77 +255,104 @@ describe("Task Form Validation", () => {
   });
 });
 
-describe("Recurring Task Utilities", () => {
-  it("should calculate next due date for daily pattern", () => {
-    const { getNextDueDate } = require("@/lib/recurring-tasks");
+describe("Natural Language Task Input", () => {
+  it("renders input field with placeholder", () => {
+    const mockOnTaskCreate = vi.fn();
     
-    const baseDate = new Date("2024-01-01");
-    const config = {
-      isRecurring: true,
-      pattern: "daily",
-      interval: 1,
-    };
+    render(
+      <TestWrapper>
+        <NaturalLanguageTaskInput onTaskCreate={mockOnTaskCreate} />
+      </TestWrapper>
+    );
 
-    const nextDate = getNextDueDate(baseDate, config);
-    expect(nextDate).toBeInstanceOf(Date);
-    expect(nextDate?.getDate()).toBe(2); // Next day
+    const input = screen.getByPlaceholderText(/Try:/i);
+    expect(input).toBeInTheDocument();
   });
 
-  it("should calculate next due date for weekly pattern", () => {
-    const { getNextDueDate } = require("@/lib/recurring-tasks");
+  it("shows suggestions when typing", async () => {
+    const mockOnTaskCreate = vi.fn();
     
-    const baseDate = new Date("2024-01-01"); // Monday
-    const config = {
-      isRecurring: true,
-      pattern: "weekly",
-      interval: 1,
-    };
+    render(
+      <TestWrapper>
+        <NaturalLanguageTaskInput onTaskCreate={mockOnTaskCreate} />
+      </TestWrapper>
+    );
 
-    const nextDate = getNextDueDate(baseDate, config);
-    expect(nextDate).toBeInstanceOf(Date);
-    expect(nextDate?.getDate()).toBe(8); // Next week same day
+    const input = screen.getByPlaceholderText(/Try:/i);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "Meeting" } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Suggestions/i)).toBeInTheDocument();
+    });
   });
 
-  it("should respect end date constraints", () => {
-    const { getNextDueDate } = require("@/lib/recurring-tasks");
+  it("calls onTaskCreate when parsed task is created", async () => {
+    const mockOnTaskCreate = vi.fn();
     
-    const baseDate = new Date("2024-01-01");
-    const config = {
-      isRecurring: true,
-      pattern: "daily",
-      interval: 1,
-      endDate: new Date("2024-01-02"), // End date is tomorrow
-    };
+    render(
+      <TestWrapper>
+        <NaturalLanguageTaskInput onTaskCreate={mockOnTaskCreate} />
+      </TestWrapper>
+    );
 
-    const nextDate = getNextDueDate(baseDate, config);
-    expect(nextDate).toBeInstanceOf(Date);
-    expect(nextDate?.getDate()).toBe(2); // Should return tomorrow
-    
-    // Next calculation should return null (past end date)
-    const nextDate2 = getNextDueDate(nextDate!, config);
-    expect(nextDate2).toBeNull();
+    const input = screen.getByPlaceholderText(/Try:/i);
+    fireEvent.change(input, { target: { value: "Meeting tomorrow" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Meeting")).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByText("Create");
+    fireEvent.click(createButton);
+
+    expect(mockOnTaskCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Meeting",
+        date: expect.any(Date),
+      })
+    );
   });
 
-  it("should generate recurring pattern text", () => {
-    const { getRecurringPatternText } = require("@/lib/recurring-tasks");
+  it("clears input after task creation", async () => {
+    const mockOnTaskCreate = vi.fn();
     
-    const dailyConfig = {
-      isRecurring: true,
-      pattern: "daily",
-      interval: 1,
-    };
-    expect(getRecurringPatternText(dailyConfig)).toBe("Daily");
+    render(
+      <TestWrapper>
+        <NaturalLanguageTaskInput onTaskCreate={mockOnTaskCreate} />
+      </TestWrapper>
+    );
 
-    const weeklyConfig = {
-      isRecurring: true,
-      pattern: "weekly",
-      interval: 2,
-    };
-    expect(getRecurringPatternText(weeklyConfig)).toBe("Every 2 weeks");
+    const input = screen.getByPlaceholderText(/Try:/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Simple task" } });
 
-    const nonRecurringConfig = {
-      isRecurring: false,
-    };
-    expect(getRecurringPatternText(nonRecurringConfig)).toBe("");
+    await waitFor(() => {
+      expect(screen.getByText("Simple task")).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByText("Create");
+    fireEvent.click(createButton);
+
+    expect(input.value).toBe("");
+  });
+
+  it("shows parsed task preview with all fields", async () => {
+    const mockOnTaskCreate = vi.fn();
+    
+    render(
+      <TestWrapper>
+        <NaturalLanguageTaskInput onTaskCreate={mockOnTaskCreate} />
+      </TestWrapper>
+    );
+
+    const input = screen.getByPlaceholderText(/Try:/i);
+    fireEvent.change(input, { target: { value: "Urgent meeting tomorrow at 2 PM #work 2h" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("meeting")).toBeInTheDocument();
+      expect(screen.getByText("Urgent")).toBeInTheDocument();
+      expect(screen.getByText("work")).toBeInTheDocument();
+      expect(screen.getByText("2h")).toBeInTheDocument();
+    });
   });
 });

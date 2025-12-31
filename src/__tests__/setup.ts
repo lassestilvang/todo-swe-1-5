@@ -1,5 +1,31 @@
-import { beforeEach } from "bun:test";
+import { beforeEach, vi } from "bun:test";
 import { JSDOM } from "jsdom";
+
+// Mock better-sqlite3
+vi.mock("better-sqlite3", () => ({
+  default: vi.fn(() => ({
+    prepare: vi.fn(() => ({
+      run: vi.fn(),
+      all: vi.fn(() => []),
+      get: vi.fn(() => null),
+    })),
+    exec: vi.fn(),
+    close: vi.fn(),
+  })),
+}));
+
+// Mock the database module
+vi.mock("@/lib/db/server", () => ({
+  db: {
+    prepare: vi.fn(() => ({
+      run: vi.fn(),
+      all: vi.fn(() => []),
+      get: vi.fn(() => null),
+    })),
+    exec: vi.fn(),
+    close: vi.fn(),
+  },
+}));
 
 // Set up DOM environment
 const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
